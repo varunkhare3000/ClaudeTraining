@@ -1,0 +1,6 @@
+PDFs/
+Prompts.txt
+.env*
+*.pem
+id_*
+.claude/settings.local.json

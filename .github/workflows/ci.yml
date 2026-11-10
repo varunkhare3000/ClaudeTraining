@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: index.html exists
+        run: test -f index.html
+
+      - name: No external scripts or stylesheets
+        run: |
+          if grep -nE '<script[^>]+src=|<link[^>]+href=["'"'"']?https?:' index.html; then
+            echo "External resource found"; exit 1
+          fi
+
+      - name: Only formsubmit.co may be contacted
+        run: |
+          bad=$(grep -oE 'https?://[^/"'"'"' )]+' index.html | grep -v 'formsubmit.co' || true)
+          if [ -n "$bad" ]; then echo "Unexpected hosts: $bad"; exit 1; fi
+
+      - name: No browser storage APIs
+        run: |
+          if grep -nE 'localStorage|sessionStorage|indexedDB|document\.cookie' index.html; then
+            echo "Storage API found"; exit 1
+          fi
+
+      - name: No !important
+        run: |
+          if grep -n '!important' index.html; then exit 1; fi
+
+      - name: No secrets or real email in endpoint
+        run: |
+          if grep -rnE 'BEGIN .*PRIVATE KEY|ghp_|github_pat_|AKIA' --exclude-dir=.git .; then
+            echo "Possible secret found"; exit 1
+          fi
+          grep -q 'YOUR_EMAIL@example.com' index.html
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare site
+        run: |
+          mkdir _site
+          cp index.html _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
