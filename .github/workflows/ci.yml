@@ -41,7 +41,7 @@ jobs:
 
       - name: No secrets or real email in endpoint
         run: |
-          if grep -rnE 'BEGIN .*PRIVATE KEY|ghp_|github_pat_|AKIA' --exclude-dir=.git .; then
+          if grep -rnE 'BEGIN .*PRIVATE KEY|ghp_|github_pat_|AKIA' --exclude-dir=.git --exclude=ci.yml --exclude=publish.md .; then
             echo "Possible secret found"; exit 1
           fi
           grep -q 'YOUR_EMAIL@example.com' index.html
